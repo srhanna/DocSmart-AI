@@ -1,6 +1,7 @@
 name: Merge fixes to main
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - copilot/remove-json-file
