@@ -1,10 +1,16 @@
 name: Merge fixes to main
 
+# INSTRUCTIONS FOR REPO OWNER:
+# This workflow copies all site fixes onto the main branch so Vercel deploys them.
+# To run it:
+#   1. Go to: https://github.com/srhanna/DocSmart-AI/actions/workflows/merge-to-main.yml
+#   2. Click the "Run workflow" button (green button, top-right of the table)
+#   3. Click "Run workflow" again to confirm
+#
+# Alternatively, just merge PR #3 at: https://github.com/srhanna/DocSmart-AI/pull/3
+
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - copilot/remove-json-file
 
 permissions:
   contents: write
@@ -30,5 +36,5 @@ jobs:
           git checkout main
           git merge origin/copilot/remove-json-file \
             --no-ff \
-            -m "Deploy: apply all site fixes from copilot/remove-json-file"
+            -m "Deploy: apply all site fixes (vercel.json, file structure, deps)"
           git push origin main
