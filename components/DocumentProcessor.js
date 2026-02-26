@@ -1,26 +1,31 @@
-// components/DocumentProcessor.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createWorker } from 'tesseract.js';
 
-const DocumentProcessor = () => {
-  const [file, setFile] = useState(null);
+const DocumentProcessor = ({ initialFile }) => {
+  const [file, setFile] = useState(initialFile || null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
+  // When an initialFile is provided, auto-process it immediately
+  useEffect(() => {
+    if (initialFile) {
+      processDocument(initialFile);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
     
-    // Check file type
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
     if (!validTypes.includes(selectedFile.type)) {
       setError('Please upload a JPEG, PNG, or PDF file.');
       return;
     }
     
-    // Check file size (max 10MB)
     if (selectedFile.size > 10 * 1024 * 1024) {
       setError('File size must be less than 10MB.');
       return;
@@ -31,18 +36,18 @@ const DocumentProcessor = () => {
     setResult(null);
   };
 
-  const processDocument = async () => {
-    if (!file) return;
+  const processDocument = async (fileToProcess) => {
+    const target = fileToProcess || file;
+    if (!target) return;
     
     setIsProcessing(true);
     setError(null);
     
     try {
       const worker = await createWorker('eng');
-      const { data: { text } } = await worker.recognize(file);
+      const { data: { text } } = await worker.recognize(target);
       await worker.terminate();
       
-      // Mock AI processing - in production, this would call an actual AI API
       const processedData = {
         extractedText: text,
         entities: extractEntities(text),
@@ -58,16 +63,13 @@ const DocumentProcessor = () => {
     }
   };
 
-  // Mock entity extraction - in production, this would use proper NLP
   const extractEntities = (text) => {
     const entities = [];
     
-    // Extract dates (simple regex for demonstration)
     const dateRegex = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g;
     const dates = text.match(dateRegex) || [];
     dates.forEach(date => entities.push({ type: 'DATE', value: date }));
     
-    // Extract amounts (simple regex for demonstration)
     const amountRegex = /\$\d+(?:\.\d{2})?/g;
     const amounts = text.match(amountRegex) || [];
     amounts.forEach(amount => entities.push({ type: 'AMOUNT', value: amount }));
@@ -75,7 +77,6 @@ const DocumentProcessor = () => {
     return entities;
   };
 
-  // Mock summary generation
   const generateSummary = (text) => {
     return text.length > 200 ? text.substring(0, 200) + '...' : text;
   };
@@ -104,11 +105,11 @@ const DocumentProcessor = () => {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
       <div className="text-center mb-6">
-        <h3 className="text-2xl font-semibold text-gray-900">Upload Your Document</h3>
-        <p className="mt-2 text-gray-600">Supported formats: JPEG, PNG, PDF (max 10MB)</p>
+        <h3 className="text-2xl font-semibold text-gray-900">Document Analysis</h3>
+        <p className="mt-2 text-gray-600">OCR text extraction and entity identification</p>
       </div>
       
-      {!file && !result && (
+      {!initialFile && !file && !result && (
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
           <input
             type="file"
@@ -116,9 +117,9 @@ const DocumentProcessor = () => {
             onChange={handleFileChange}
             className="hidden"
             accept=".jpeg,.jpg,.png,.pdf"
-            id="file-upload"
+            id="processor-file-upload"
           />
-          <label htmlFor="file-upload" className="cursor-pointer">
+          <label htmlFor="processor-file-upload" className="cursor-pointer">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
@@ -129,7 +130,7 @@ const DocumentProcessor = () => {
         </div>
       )}
       
-      {file && !isProcessing && !result && (
+      {file && !isProcessing && !result && !initialFile && (
         <div className="mt-4">
           <div className="flex items-center justify-between bg-gray-50 p-4 rounded-md">
             <div className="flex items-center">
@@ -149,7 +150,7 @@ const DocumentProcessor = () => {
           </div>
           <div className="mt-6 flex justify-center">
             <button
-              onClick={processDocument}
+              onClick={() => processDocument()}
               disabled={isProcessing}
               className="bg-indigo-600 text-white px-6 py-3 rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
@@ -161,12 +162,12 @@ const DocumentProcessor = () => {
       
       {isProcessing && (
         <div className="mt-6 text-center">
-          <div className="inline-flex items-center px-4 py-2 border border-transparent text-base leading-6 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:border-indigo-700 focus:shadow-outline-indigo active:bg-indigo-700 transition ease-in-out duration-150 cursor-not-allowed">
+          <div className="inline-flex items-center px-4 py-2 border border-transparent text-base leading-6 font-medium rounded-md text-white bg-indigo-600 cursor-not-allowed">
             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Processing your document...
+            Analysing your document...
           </div>
           <p className="mt-2 text-sm text-gray-600">This may take a few seconds</p>
         </div>
@@ -230,6 +231,13 @@ const DocumentProcessor = () => {
               </div>
             </div>
           </div>
+
+          <div className="mt-4">
+            <h4 className="text-lg font-medium text-gray-900 mb-2">Summary</h4>
+            <div className="bg-gray-50 p-4 rounded-md">
+              <p className="text-sm text-gray-700">{result.summary || 'No summary available'}</p>
+            </div>
+          </div>
           
           <div className="mt-6 flex justify-center space-x-4">
             <button
@@ -238,12 +246,14 @@ const DocumentProcessor = () => {
             >
               Download Results
             </button>
-            <button
-              onClick={resetForm}
-              className="bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 hover:bg-gray-50"
-            >
-              Process Another Document
-            </button>
+            {!initialFile && (
+              <button
+                onClick={resetForm}
+                className="bg-white text-gray-700 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 hover:bg-gray-50"
+              >
+                Process Another Document
+              </button>
+            )}
           </div>
         </div>
       )}

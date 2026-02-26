@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import DocumentProcessor from './DocumentProcessor';
 
 export default function DocumentUpload() {
   const [file, setFile] = useState(null);
@@ -125,42 +126,47 @@ export default function DocumentUpload() {
       )}
 
       {result && (
-        <div
-          style={{
-            backgroundColor: '#f0fdf4',
-            border: '1px solid #86efac',
-            borderRadius: '8px',
-            padding: '20px',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontSize: '48px', marginBottom: '10px' }}>✅</div>
-          <h3 style={{ color: '#166534', fontSize: '20px', marginBottom: '12px' }}>
-            Upload Successful!
-          </h3>
-          <p style={{ color: '#555', marginBottom: '6px' }}>
-            <strong>File:</strong> {result.fileName}
-          </p>
-          <p style={{ color: '#555', marginBottom: '6px' }}>
-            <strong>Size:</strong> {(result.fileSize / 1024).toFixed(1)} KB
-          </p>
-          <p style={{ color: '#555', marginBottom: '20px' }}>
-            <strong>Type:</strong> {result.fileType}
-          </p>
-          <button
-            onClick={reset}
+        <div>
+          <div
             style={{
-              padding: '10px 24px',
-              fontSize: '15px',
-              backgroundColor: '#0070f3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: '8px',
+              padding: '20px',
+              textAlign: 'center',
+              marginBottom: '24px',
             }}
           >
-            Upload Another Document
-          </button>
+            <div style={{ fontSize: '48px', marginBottom: '10px' }}>✅</div>
+            <h3 style={{ color: '#166534', fontSize: '20px', marginBottom: '12px' }}>
+              Upload Successful!
+            </h3>
+            <p style={{ color: '#555', marginBottom: '6px' }}>
+              <strong>File:</strong> {result.fileName}
+            </p>
+            <p style={{ color: '#555', marginBottom: '6px' }}>
+              <strong>Size:</strong> {(result.fileSize / 1024).toFixed(1)} KB
+            </p>
+            <p style={{ color: '#555', marginBottom: '20px' }}>
+              <strong>Type:</strong> {result.fileType}
+            </p>
+            <button
+              onClick={reset}
+              style={{
+                padding: '10px 24px',
+                fontSize: '15px',
+                backgroundColor: '#0070f3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              Upload Another Document
+            </button>
+          </div>
+
+          <DocumentProcessor initialFile={file} />
         </div>
       )}
     </div>
