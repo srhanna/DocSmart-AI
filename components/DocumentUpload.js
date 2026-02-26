@@ -150,6 +150,14 @@ export default function DocumentUpload() {
             <p style={{ color: '#555', marginBottom: '20px' }}>
               <strong>Type:</strong> {result.fileType}
             </p>
+            {result.blobUrl && (
+              <p style={{ color: '#555', marginBottom: '20px', wordBreak: 'break-all' }}>
+                <strong>Stored at:</strong>{' '}
+                <a href={result.blobUrl} target="_blank" rel="noreferrer" style={{ color: '#0070f3' }}>
+                  {result.blobUrl}
+                </a>
+              </p>
+            )}
             <button
               onClick={reset}
               style={{

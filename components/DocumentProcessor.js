@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createWorker } from 'tesseract.js';
+
+const SUMMARY_MAX_LENGTH = 200;
 
 const DocumentProcessor = ({ initialFile }) => {
   const [file, setFile] = useState(initialFile || null);
@@ -8,52 +10,42 @@ const DocumentProcessor = ({ initialFile }) => {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
-  // When an initialFile is provided, auto-process it immediately
-  useEffect(() => {
-    if (initialFile) {
-      processDocument(initialFile);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const extractEntities = (text) => {
+    const entities = [];
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (!selectedFile) return;
-    
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!validTypes.includes(selectedFile.type)) {
-      setError('Please upload a JPEG, PNG, or PDF file.');
-      return;
-    }
-    
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB.');
-      return;
-    }
-    
-    setFile(selectedFile);
-    setError(null);
-    setResult(null);
+    const dateRegex = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g;
+    const dates = text.match(dateRegex) || [];
+    dates.forEach(date => entities.push({ type: 'DATE', value: date }));
+
+    const amountRegex = /\$\d+(?:\.\d{2})?/g;
+    const amounts = text.match(amountRegex) || [];
+    amounts.forEach(amount => entities.push({ type: 'AMOUNT', value: amount }));
+
+    return entities;
   };
 
-  const processDocument = async (fileToProcess) => {
+  const generateSummary = (text) => {
+    return text.length > SUMMARY_MAX_LENGTH ? text.substring(0, SUMMARY_MAX_LENGTH) + '...' : text;
+  };
+
+  const processDocument = useCallback(async (fileToProcess) => {
     const target = fileToProcess || file;
     if (!target) return;
-    
+
     setIsProcessing(true);
     setError(null);
-    
+
     try {
       const worker = await createWorker('eng');
       const { data: { text } } = await worker.recognize(target);
       await worker.terminate();
-      
+
       const processedData = {
         extractedText: text,
         entities: extractEntities(text),
         summary: generateSummary(text),
       };
-      
+
       setResult(processedData);
     } catch (err) {
       setError('Failed to process document. Please try again.');
@@ -61,24 +53,38 @@ const DocumentProcessor = ({ initialFile }) => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [file]);
 
-  const extractEntities = (text) => {
-    const entities = [];
-    
-    const dateRegex = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g;
-    const dates = text.match(dateRegex) || [];
-    dates.forEach(date => entities.push({ type: 'DATE', value: date }));
-    
-    const amountRegex = /\$\d+(?:\.\d{2})?/g;
-    const amounts = text.match(amountRegex) || [];
-    amounts.forEach(amount => entities.push({ type: 'AMOUNT', value: amount }));
-    
-    return entities;
-  };
+  // When an initialFile is provided, auto-process it immediately.
+  // We only depend on initialFile; processDocument is intentionally omitted
+  // from the dep array because this effect should run exactly once per new
+  // initialFile value, and processDocument is called with the file argument
+  // directly so no stale closure occurs.
+  useEffect(() => {
+    if (initialFile) {
+      processDocument(initialFile);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFile]);
 
-  const generateSummary = (text) => {
-    return text.length > 200 ? text.substring(0, 200) + '...' : text;
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!validTypes.includes(selectedFile.type)) {
+      setError('Please upload a JPEG, PNG, or PDF file.');
+      return;
+    }
+
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB.');
+      return;
+    }
+
+    setFile(selectedFile);
+    setError(null);
+    setResult(null);
   };
 
   const resetForm = () => {
@@ -92,7 +98,7 @@ const DocumentProcessor = ({ initialFile }) => {
 
   const downloadResults = () => {
     if (!result) return;
-    
+
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -108,7 +114,7 @@ const DocumentProcessor = ({ initialFile }) => {
         <h3 className="text-2xl font-semibold text-gray-900">Document Analysis</h3>
         <p className="mt-2 text-gray-600">OCR text extraction and entity identification</p>
       </div>
-      
+
       {!initialFile && !file && !result && (
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
           <input
@@ -129,7 +135,7 @@ const DocumentProcessor = ({ initialFile }) => {
           </label>
         </div>
       )}
-      
+
       {file && !isProcessing && !result && !initialFile && (
         <div className="mt-4">
           <div className="flex items-center justify-between bg-gray-50 p-4 rounded-md">
@@ -139,7 +145,7 @@ const DocumentProcessor = ({ initialFile }) => {
               </svg>
               <span className="text-sm text-gray-700">{file.name}</span>
             </div>
-            <button 
+            <button
               onClick={resetForm}
               className="text-gray-500 hover:text-gray-700"
             >
@@ -159,7 +165,7 @@ const DocumentProcessor = ({ initialFile }) => {
           </div>
         </div>
       )}
-      
+
       {isProcessing && (
         <div className="mt-6 text-center">
           <div className="inline-flex items-center px-4 py-2 border border-transparent text-base leading-6 font-medium rounded-md text-white bg-indigo-600 cursor-not-allowed">
@@ -167,12 +173,12 @@ const DocumentProcessor = ({ initialFile }) => {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Analysing your document...
+            Analyzing your document...
           </div>
           <p className="mt-2 text-sm text-gray-600">This may take a few seconds</p>
         </div>
       )}
-      
+
       {error && (
         <div className="mt-4 p-4 bg-red-50 rounded-md">
           <div className="flex">
@@ -187,7 +193,7 @@ const DocumentProcessor = ({ initialFile }) => {
           </div>
         </div>
       )}
-      
+
       {result && (
         <div className="mt-6">
           <div className="bg-green-50 p-4 rounded-md mb-4">
@@ -202,7 +208,7 @@ const DocumentProcessor = ({ initialFile }) => {
               </div>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
               <h4 className="text-lg font-medium text-gray-900 mb-2">Extracted Text</h4>
@@ -210,7 +216,7 @@ const DocumentProcessor = ({ initialFile }) => {
                 <pre className="text-sm text-gray-700 whitespace-pre-wrap">{result.extractedText || 'No text detected'}</pre>
               </div>
             </div>
-            
+
             <div>
               <h4 className="text-lg font-medium text-gray-900 mb-2">Identified Information</h4>
               <div className="bg-gray-50 p-4 rounded-md h-64 overflow-y-auto">
@@ -238,7 +244,7 @@ const DocumentProcessor = ({ initialFile }) => {
               <p className="text-sm text-gray-700">{result.summary || 'No summary available'}</p>
             </div>
           </div>
-          
+
           <div className="mt-6 flex justify-center space-x-4">
             <button
               onClick={downloadResults}
