@@ -144,9 +144,17 @@ export default function DocumentUpload() {
           <p style={{ color: '#555', marginBottom: '6px' }}>
             <strong>Size:</strong> {(result.fileSize / 1024).toFixed(1)} KB
           </p>
-          <p style={{ color: '#555', marginBottom: '20px' }}>
+          <p style={{ color: '#555', marginBottom: '6px' }}>
             <strong>Type:</strong> {result.fileType}
           </p>
+          {result.blobUrl && (
+            <p style={{ color: '#555', marginBottom: '20px', wordBreak: 'break-all' }}>
+              <strong>URL:</strong>{' '}
+              <a href={result.blobUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#0070f3' }}>
+                {result.blobUrl}
+              </a>
+            </p>
+          )}
           <button
             onClick={reset}
             style={{
