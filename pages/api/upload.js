@@ -1,6 +1,6 @@
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
-import path from 'path';
+import { put } from '@vercel/blob';
 
 export const config = {
   api: {
@@ -13,13 +13,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
   const form = new IncomingForm({
-    uploadDir,
     keepExtensions: true,
     maxFileSize: 10 * 1024 * 1024,
   });
@@ -32,10 +26,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    let blob;
+    try {
+      const fileStream = fs.createReadStream(uploadedFile.filepath);
+      blob = await put(uploadedFile.originalFilename, fileStream, {
+        access: 'public',
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+    } finally {
+      fs.unlinkSync(uploadedFile.filepath);
+    }
+
     return res.status(200).json({
       message: 'File uploaded successfully',
       fileName: uploadedFile.originalFilename,
-      filePath: uploadedFile.filepath,
+      filePath: blob.url,
       fileSize: uploadedFile.size,
       fileType: uploadedFile.mimetype,
     });
