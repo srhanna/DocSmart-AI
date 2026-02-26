@@ -28,7 +28,7 @@ The most recently completed implementation added a full document upload pipeline
 
 ### 1. Configure environment variables
 
-Copy `.env.local.example` to `.env.local` and set your Vercel Blob token:
+Copy `.env.local.example` to `.env.local` and fill in both tokens:
 
 ```bash
 cp .env.local.example .env.local
@@ -37,11 +37,28 @@ cp .env.local.example .env.local
 Then edit `.env.local`:
 
 ```
-BLOB_READ_WRITE_TOKEN=<your token from Vercel dashboard → Storage → doc-smart-ai-blob>
+# Vercel Blob storage token (read/write access to the doc-smart-ai-blob store)
+BLOB_READ_WRITE_TOKEN=<your token — see Storage section below>
+
+# Vercel AI Gateway token (for AI document processing)
+AI_GATEWAY_API_KEY=<your token — see AI Gateway section below>
 ```
 
 > **Never commit `.env.local`** — it is listed in `.gitignore`.  
-> When deploying to Vercel, add `BLOB_READ_WRITE_TOKEN` as an Environment Variable in your project settings.
+> When deploying to Vercel, add both variables as Environment Variables in your project settings.
+
+#### Obtaining `BLOB_READ_WRITE_TOKEN`
+
+1. Open the Vercel dashboard and click **Storage** in the left sidebar.
+2. Select the **doc-smart-ai-blob** store.
+3. The auto-generated `BLOB_READ_WRITE_TOKEN` is shown in the **Environment Variables** section of the store page. Copy its value.
+
+#### Obtaining `AI_GATEWAY_API_KEY`
+
+1. In the Vercel dashboard, navigate to **AI Gateway** (`https://vercel.com/{your-team}/~/ai-gateway`).
+2. Click the **Tokens** tab in the left navigation.
+3. Click **Create Token**, give it a descriptive name, and click **Create**.
+4. **Copy the token immediately** — it is only shown once.
 
 ### 2. Install dependencies and run
 
@@ -52,20 +69,40 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Rotating the Blob Token
+## Rotating Tokens
 
-> **Do this immediately if your `BLOB_READ_WRITE_TOKEN` is ever accidentally exposed** (e.g. committed to source control, shared in a chat, or visible in CI logs).  
+### Rotating the AI Gateway Token
+
+> **Do this immediately if your `AI_GATEWAY_API_KEY` is ever accidentally exposed.**
+
+The AI Gateway token is managed through the **Tokens** tab in the Vercel AI Gateway dashboard:
+
+1. Go to [https://vercel.com](https://vercel.com) and sign in.
+2. In the left sidebar, click **AI Gateway**.
+3. Click the **Tokens** tab.
+4. Find the compromised token, click its **⋯** menu, and select **Delete**. Confirm deletion.  
+   The old token is invalid immediately.
+5. Click **Create Token**, give it a descriptive name (e.g. `docsmart-prod-2026-02`), and click **Create**.
+6. **Copy the new token immediately** — it is only shown once.
+7. Update `AI_GATEWAY_API_KEY` in your Vercel project settings (**Settings → Environment Variables**) and in your local `.env.local`.
+8. Redeploy the project (see "Redeploy to production" below).
+
+---
+
+### Rotating the Blob Storage Token
+
+> **Do this immediately if your `BLOB_READ_WRITE_TOKEN` is ever accidentally exposed.**  
 > A valid token grants full read/write access to all files in the `doc-smart-ai-blob` store.
 
 > **Note:** The Vercel Blob store settings page does **not** have a dedicated "Tokens" section. The token is stored as a project-level environment variable. Follow the steps below to rotate it correctly.
 
-### Step 1 — Open the blob store in the Vercel dashboard
+#### Step 1 — Open the blob store in the Vercel dashboard
 
 1. Go to [https://vercel.com](https://vercel.com) and sign in.
 2. In the left sidebar, click **Storage**.
 3. Click the **doc-smart-ai-blob** store.
 
-### Step 2 — Find the token environment variable
+#### Step 2 — Find the token environment variable
 
 Inside the blob store page you will see an **Environment Variables** section (or a **Quickstart** tab) listing the auto-generated `BLOB_READ_WRITE_TOKEN` that was created when the store was connected to your project.
 
@@ -73,7 +110,7 @@ If a **Regenerate** / **Rotate** button is shown next to the variable, click it 
 
 If no such button is shown, continue with Step 3.
 
-### Step 3 — Manually replace the token in project settings
+#### Step 3 — Manually replace the token in project settings
 
 1. In the Vercel dashboard, go to your **DocSmart AI project**.
 2. Click **Settings → Environment Variables**.
@@ -97,7 +134,7 @@ vercel env pull .env.local
 rm .env.local.tmp
 ```
 
-### Step 4 — Update local development
+#### Step 4 — Update local development
 
 Open `.env.local` (never commit this file — it is in `.gitignore`) and replace the old value:
 
@@ -109,14 +146,14 @@ If you used `vercel env pull` above, `.env.local` is already updated — no manu
 
 Restart the dev server (`npm run dev`) so the new value is picked up.
 
-### Step 5 — Redeploy to production
+#### Step 5 — Redeploy to production
 
 After saving the environment variable in the dashboard, **redeploy** the project so live traffic uses the new token:
 
 - Go to the **Deployments** tab, open the latest deployment, and click **Redeploy**, or
 - Push a new commit to trigger a fresh deployment automatically.
 
-### Step 6 — Verify
+#### Step 6 — Verify
 
 ```bash
 # Quick smoke-test: upload a file and confirm the blobUrl is returned
@@ -128,8 +165,8 @@ A `200` response with a `blobUrl` field confirms the new token is working.
 
 ### Checklist
 
-- [ ] New token obtained (via Vercel dashboard Regenerate button **or** Vercel CLI)
-- [ ] `BLOB_READ_WRITE_TOKEN` environment variable updated in Vercel project settings (Settings → Environment Variables)
+- [ ] AI Gateway token rotated (AI Gateway → Tokens tab) and `AI_GATEWAY_API_KEY` updated
+- [ ] New blob token obtained (via Vercel dashboard Regenerate button **or** Vercel CLI) and `BLOB_READ_WRITE_TOKEN` updated
 - [ ] `.env.local` updated locally (manually or via `vercel env pull`)
 - [ ] Project redeployed
 - [ ] Upload smoke-test passes with the new token
