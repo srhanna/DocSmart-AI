@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import { upload } from '@vercel/blob/client';
 
 export default function DocumentUpload() {
   const [file, setFile] = useState(null);
@@ -33,16 +33,14 @@ export default function DocumentUpload() {
     setLoading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await axios.post('/api/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload-url',
       });
-      setResult(response.data);
+      setResult({ fileName: file.name, fileSize: file.size, fileType: file.type, url: blob.url });
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to upload document. Please try again.');
+      setError(err.message || 'Failed to upload document. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -147,6 +145,14 @@ export default function DocumentUpload() {
           <p style={{ color: '#555', marginBottom: '20px' }}>
             <strong>Type:</strong> {result.fileType}
           </p>
+          {result.url && (
+            <p style={{ color: '#555', marginBottom: '20px', wordBreak: 'break-all' }}>
+              <strong>URL:</strong>{' '}
+              <a href={result.url} target="_blank" rel="noreferrer" style={{ color: '#0070f3' }}>
+                {result.url}
+              </a>
+            </p>
+          )}
           <button
             onClick={reset}
             style={{
