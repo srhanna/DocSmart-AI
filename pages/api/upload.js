@@ -1,6 +1,7 @@
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import { put } from '@vercel/blob';
 
 export const config = {
   api: {
@@ -13,13 +14,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
   const form = new IncomingForm({
-    uploadDir,
     keepExtensions: true,
     maxFileSize: 10 * 1024 * 1024,
   });
@@ -32,10 +27,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    const safeFilename = path.basename(uploadedFile.originalFilename).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileStream = fs.createReadStream(uploadedFile.filepath);
+    const blob = await put(safeFilename, fileStream, {
+      access: 'public',
+      contentType: uploadedFile.mimetype,
+    });
+
+    fs.unlink(uploadedFile.filepath, (err) => {
+      if (err) console.error('Failed to delete temp file:', err);
+    });
+
     return res.status(200).json({
       message: 'File uploaded successfully',
       fileName: uploadedFile.originalFilename,
-      filePath: uploadedFile.filepath,
+      fileUrl: blob.url,
       fileSize: uploadedFile.size,
       fileType: uploadedFile.mimetype,
     });
