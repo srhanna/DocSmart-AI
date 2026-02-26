@@ -57,53 +57,64 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 > **Do this immediately if your `BLOB_READ_WRITE_TOKEN` is ever accidentally exposed** (e.g. committed to source control, shared in a chat, or visible in CI logs).  
 > A valid token grants full read/write access to all files in the `doc-smart-ai-blob` store.
 
-### Step 1 — Open the Vercel dashboard
+> **Note:** The Vercel Blob store settings page does **not** have a dedicated "Tokens" section. The token is stored as a project-level environment variable. Follow the steps below to rotate it correctly.
+
+### Step 1 — Open the blob store in the Vercel dashboard
 
 1. Go to [https://vercel.com](https://vercel.com) and sign in.
-2. In the top navigation, click **Storage**.
+2. In the left sidebar, click **Storage**.
 3. Click the **doc-smart-ai-blob** store.
 
-### Step 2 — Delete the compromised token
+### Step 2 — Find the token environment variable
 
-1. Click the **Settings** tab (inside the blob store view).
-2. Scroll to the **Tokens** section.
-3. Find the token you want to revoke and click the **⋯** (three-dot) menu to its right.
-4. Select **Delete** and confirm.  
-   The old token becomes invalid immediately — any running process using it will start receiving `401 Unauthorized` errors.
+Inside the blob store page you will see an **Environment Variables** section (or a **Quickstart** tab) listing the auto-generated `BLOB_READ_WRITE_TOKEN` that was created when the store was connected to your project.
 
-### Step 3 — Generate a new token
+If a **Regenerate** / **Rotate** button is shown next to the variable, click it and confirm. Vercel immediately issues a new token value and updates the environment variable — skip to Step 4.
 
-1. Still in **Settings → Tokens**, click **Create Token**.
-2. Give it a descriptive name (e.g. `docsmart-prod-2026-02`) and choose the **Read/Write** permission scope.
-3. Click **Create**.
-4. **Copy the token immediately** — it is only shown once.
+If no such button is shown, continue with Step 3.
 
-### Step 4 — Update local development
-
-```bash
-# Open (or create) your local env file
-# This file is listed in .gitignore and must never be committed
-nano .env.local
-```
-
-Replace the old value:
-
-```
-BLOB_READ_WRITE_TOKEN=<paste new token here>
-```
-
-Restart the dev server (`npm run dev`) so the new value is picked up.
-
-### Step 5 — Update the Vercel project environment variable
+### Step 3 — Manually replace the token in project settings
 
 1. In the Vercel dashboard, go to your **DocSmart AI project**.
 2. Click **Settings → Environment Variables**.
-3. Find `BLOB_READ_WRITE_TOKEN`, click **Edit**, and paste the new token.
-4. Choose which environments (Production / Preview / Development) should receive it.
-5. Click **Save**.
-6. **Redeploy** the project so the change takes effect:  
-   - Go to the **Deployments** tab, open the latest deployment, and click **Redeploy**, or  
-   - Push a new commit to trigger a fresh deployment automatically.
+3. Find `BLOB_READ_WRITE_TOKEN` in the list and click the **⋯** menu → **Edit**.
+4. Delete the current value and paste the new token (obtained e.g. from the Vercel CLI — see below).
+5. Ensure all target environments (Production, Preview, Development) are checked, then click **Save**.
+
+**Generating a fresh token value with the Vercel CLI:**
+
+```bash
+# If you haven't installed the CLI:
+npm i -g vercel
+
+# Log in and link this project, then pull current env vars:
+vercel env pull .env.local.tmp
+
+# The pulled file will contain the current BLOB_READ_WRITE_TOKEN.
+# After updating the env var in the dashboard (step 3 above), pull again
+# to get the new value:
+vercel env pull .env.local
+rm .env.local.tmp
+```
+
+### Step 4 — Update local development
+
+Open `.env.local` (never commit this file — it is in `.gitignore`) and replace the old value:
+
+```
+BLOB_READ_WRITE_TOKEN=<new token value>
+```
+
+If you used `vercel env pull` above, `.env.local` is already updated — no manual edit needed.
+
+Restart the dev server (`npm run dev`) so the new value is picked up.
+
+### Step 5 — Redeploy to production
+
+After saving the environment variable in the dashboard, **redeploy** the project so live traffic uses the new token:
+
+- Go to the **Deployments** tab, open the latest deployment, and click **Redeploy**, or
+- Push a new commit to trigger a fresh deployment automatically.
 
 ### Step 6 — Verify
 
@@ -117,10 +128,9 @@ A `200` response with a `blobUrl` field confirms the new token is working.
 
 ### Checklist
 
-- [ ] Old token deleted in Vercel dashboard (Storage → doc-smart-ai-blob → Settings → Tokens)
-- [ ] New token generated and copied
-- [ ] `.env.local` updated locally
-- [ ] `BLOB_READ_WRITE_TOKEN` environment variable updated in Vercel project settings
+- [ ] New token obtained (via Vercel dashboard Regenerate button **or** Vercel CLI)
+- [ ] `BLOB_READ_WRITE_TOKEN` environment variable updated in Vercel project settings (Settings → Environment Variables)
+- [ ] `.env.local` updated locally (manually or via `vercel env pull`)
 - [ ] Project redeployed
 - [ ] Upload smoke-test passes with the new token
 
