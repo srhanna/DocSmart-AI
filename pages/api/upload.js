@@ -1,6 +1,7 @@
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import { uploadPdfToBlob } from '../../lib/uploadPdfToBlob';
 
 export const config = {
   api: {
@@ -30,6 +31,18 @@ export default async function handler(req, res) {
 
     if (!uploadedFile) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    if (uploadedFile.mimetype === 'application/pdf') {
+      const readWriteToken = process.env.BLOB_READ_WRITE_TOKEN;
+      if (!readWriteToken) {
+        console.warn('BLOB_READ_WRITE_TOKEN is not configured; skipping Vercel Blob upload for PDF.');
+      } else {
+        const success = await uploadPdfToBlob(uploadedFile.filepath, readWriteToken);
+        if (!success) {
+          return res.status(500).json({ error: 'Failed to upload PDF to Vercel Blob Storage. Check server logs for details.' });
+        }
+      }
     }
 
     return res.status(200).json({
