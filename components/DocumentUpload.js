@@ -42,7 +42,13 @@ export default function DocumentUpload() {
       });
       setResult(response.data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to upload document. Please try again.');
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (err.request) {
+        setError('No response from server. Please check your connection and try again.');
+      } else {
+        setError('Failed to upload document. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
