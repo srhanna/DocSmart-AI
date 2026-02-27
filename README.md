@@ -42,10 +42,14 @@ BLOB_READ_WRITE_TOKEN=<your token — see Storage section below>
 
 # Vercel AI Gateway token (for AI document processing)
 AI_GATEWAY_API_KEY=<your token — see AI Gateway section below>
+
+# Optional: AI model via the gateway (default: openai/gpt-4o-mini)
+# Format: provider/model-name  e.g. openai/gpt-4o, anthropic/claude-3-5-sonnet
+AI_GATEWAY_MODEL=
 ```
 
 > **Never commit `.env.local`** — it is listed in `.gitignore`.  
-> When deploying to Vercel, add both variables as Environment Variables in your project settings.
+> When deploying to Vercel, add both required variables as Environment Variables in your project settings.
 
 #### Obtaining `BLOB_READ_WRITE_TOKEN`
 
@@ -59,6 +63,11 @@ AI_GATEWAY_API_KEY=<your token — see AI Gateway section below>
 2. Click the **Tokens** tab in the left navigation.
 3. Click **Create Token**, give it a descriptive name, and click **Create**.
 4. **Copy the token immediately** — it is only shown once.
+
+The token is used by `POST /api/process`, which calls the Vercel AI Gateway at  
+`https://ai-gateway.vercel.sh/v1/chat/completions` with a proper `Authorization: Bearer` header.  
+To use a different model, set `AI_GATEWAY_MODEL` (e.g. `openai/gpt-4o` or `anthropic/claude-3-5-sonnet`).  
+The default is `openai/gpt-4o-mini`.
 
 ### 2. Install dependencies and run
 

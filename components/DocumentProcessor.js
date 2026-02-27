@@ -8,6 +8,8 @@ const DocumentProcessor = ({ initialFile }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const fileInputRef = useRef(null);
 
   const extractEntities = (text) => {
@@ -34,6 +36,7 @@ const DocumentProcessor = ({ initialFile }) => {
 
     setIsProcessing(true);
     setError(null);
+    setAiAnalysis(null);
 
     try {
       const worker = await createWorker('eng');
@@ -47,6 +50,27 @@ const DocumentProcessor = ({ initialFile }) => {
       };
 
       setResult(processedData);
+
+      // AI-enhanced analysis via the Vercel AI Gateway (best-effort — does not
+      // block or replace the OCR results if the gateway is unavailable).
+      if (text.trim()) {
+        setIsAnalyzingAI(true);
+        try {
+          const aiRes = await fetch('/api/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+          });
+          if (aiRes.ok) {
+            const { analysis } = await aiRes.json();
+            setAiAnalysis(analysis);
+          }
+        } catch (aiErr) {
+          console.warn('AI analysis unavailable:', aiErr);
+        } finally {
+          setIsAnalyzingAI(false);
+        }
+      }
     } catch (err) {
       setError('Failed to process document. Please try again.');
       console.error(err);
@@ -91,6 +115,8 @@ const DocumentProcessor = ({ initialFile }) => {
     setFile(null);
     setResult(null);
     setError(null);
+    setAiAnalysis(null);
+    setIsAnalyzingAI(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -99,7 +125,8 @@ const DocumentProcessor = ({ initialFile }) => {
   const downloadResults = () => {
     if (!result) return;
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result, null, 2));
+    const exportData = aiAnalysis ? { ...result, aiAnalysis } : result;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "document_analysis.json");
@@ -244,6 +271,59 @@ const DocumentProcessor = ({ initialFile }) => {
               <p className="text-sm text-gray-700">{result.summary || 'No summary available'}</p>
             </div>
           </div>
+
+          {/* AI-enhanced analysis via Vercel AI Gateway */}
+          {isAnalyzingAI && (
+            <div className="mt-4 p-4 bg-indigo-50 rounded-md flex items-center space-x-3">
+              <svg className="animate-spin h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-sm text-indigo-700">Running AI analysis…</span>
+            </div>
+          )}
+
+          {aiAnalysis && (
+            <div className="mt-4 border border-indigo-200 rounded-md overflow-hidden">
+              <div className="bg-indigo-50 px-4 py-2 flex items-center space-x-2">
+                <span className="text-indigo-600 font-medium text-sm">🤖 AI Analysis</span>
+                <span className="text-xs text-indigo-400">(Vercel AI Gateway)</span>
+              </div>
+              <div className="p-4 space-y-4">
+                {aiAnalysis.summary && (
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-900 mb-1">AI Summary</h5>
+                    <p className="text-sm text-gray-700">{aiAnalysis.summary}</p>
+                  </div>
+                )}
+                {Array.isArray(aiAnalysis.keyPoints) && aiAnalysis.keyPoints.length > 0 && (
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-900 mb-1">Key Points</h5>
+                    <ul className="list-disc list-inside space-y-1">
+                      {aiAnalysis.keyPoints.map((point, i) => (
+                        <li key={i} className="text-sm text-gray-700">{point}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {Array.isArray(aiAnalysis.entities) && aiAnalysis.entities.length > 0 && (
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-900 mb-1">AI-Identified Entities</h5>
+                    <ul className="space-y-1">
+                      {aiAnalysis.entities.map((entity, i) => (
+                        <li key={i} className="flex items-start">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 mr-2">
+                            {entity.type}
+                          </span>
+                          <span className="text-sm text-gray-700">{entity.value}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 flex justify-center space-x-4">
             <button
