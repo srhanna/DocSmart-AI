@@ -1,6 +1,5 @@
 import { IncomingForm } from 'formidable';
-import fs from 'fs';
-import path from 'path';
+import os from 'os';
 
 export const config = {
   api: {
@@ -13,10 +12,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
+  const uploadDir = os.tmpdir();
 
   const form = new IncomingForm({
     uploadDir,
