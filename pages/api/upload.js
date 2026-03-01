@@ -1,6 +1,5 @@
 import { IncomingForm } from 'formidable';
-import fs from 'fs';
-import path from 'path';
+import os from 'os';
 
 export const config = {
   api: {
@@ -13,18 +12,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  const form = new IncomingForm({
-    uploadDir,
-    keepExtensions: true,
-    maxFileSize: 10 * 1024 * 1024,
-  });
-
   try {
+    const form = new IncomingForm({
+      uploadDir: os.tmpdir(),
+      keepExtensions: true,
+      maxFileSize: 10 * 1024 * 1024,
+    });
+
     const [fields, files] = await form.parse(req);
     const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
 
