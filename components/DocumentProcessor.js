@@ -53,6 +53,20 @@ const DocumentProcessor = () => {
     return text.length > 200 ? text.substring(0, 200) + '...' : text;
   };
 
+  const extractTextFromPdf = async (pdfFile) => {
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pageTexts = [];
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      pageTexts.push(content.items.map((item) => item.str).join(' '));
+    }
+    return pageTexts.join('\n\n');
+  };
+
   const processDocument = async () => {
     if (!file) return;
     
@@ -60,17 +74,21 @@ const DocumentProcessor = () => {
     setError(null);
     
     try {
-      const worker = await createWorker('eng');
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
+      let text = '';
+      if (file.type === 'application/pdf') {
+        text = await extractTextFromPdf(file);
+      } else {
+        const worker = await createWorker('eng');
+        const { data } = await worker.recognize(file);
+        text = data.text;
+        await worker.terminate();
+      }
       
-      const processedData = {
+      setResult({
         extractedText: text,
         entities: extractEntities(text),
         summary: generateSummary(text),
-      };
-      
-      setResult(processedData);
+      });
     } catch (err) {
       setError('Failed to process document. Please try again.');
       console.error(err);
