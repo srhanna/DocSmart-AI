@@ -1,4 +1,5 @@
 import dynamic from 'next/dynamic';
+import AdUnit from '../components/AdUnit';
 
 const DocumentProcessor = dynamic(() => import('../components/DocumentProcessor'), { ssr: false });
 
@@ -11,6 +12,8 @@ export default function Home() {
       </p>
 
       <DocumentProcessor />
+
+      <AdUnit style={{ marginTop: '40px', maxWidth: '728px', marginLeft: 'auto', marginRight: 'auto' }} />
 
       <footer style={{ marginTop: '80px', padding: '20px', color: '#999', fontSize: '14px', borderTop: '1px solid #eee' }}>
         <p>&copy; 2026 DocSmart AI. All rights reserved.</p>
