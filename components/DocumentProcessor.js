@@ -1,6 +1,7 @@
 // components/DocumentProcessor.js
 import React, { useState, useRef } from 'react';
 import { createWorker } from 'tesseract.js';
+import axios from 'axios';
 
 const DocumentProcessor = () => {
   const [file, setFile] = useState(null);
@@ -31,28 +32,6 @@ const DocumentProcessor = () => {
     setResult(null);
   };
 
-  // Extract dates and monetary amounts from text
-  const extractEntities = (text) => {
-    const entities = [];
-    
-    // Extract dates (simple regex for demonstration)
-    const dateRegex = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g;
-    const dates = text.match(dateRegex) || [];
-    dates.forEach(date => entities.push({ type: 'DATE', value: date }));
-    
-    // Extract amounts (simple regex for demonstration)
-    const amountRegex = /\$\d+(?:\.\d{2})?/g;
-    const amounts = text.match(amountRegex) || [];
-    amounts.forEach(amount => entities.push({ type: 'AMOUNT', value: amount }));
-    
-    return entities;
-  };
-
-  // Return the first 200 characters as a preview summary
-  const generateSummary = (text) => {
-    return text.length > 200 ? text.substring(0, 200) + '...' : text;
-  };
-
   const extractTextFromPdf = async (pdfFile) => {
     const pdfjsLib = await import('pdfjs-dist');
     pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -74,6 +53,7 @@ const DocumentProcessor = () => {
     setError(null);
     
     try {
+      // Step 1: extract raw text from the file client-side
       let text = '';
       if (file.type === 'application/pdf') {
         text = await extractTextFromPdf(file);
@@ -83,11 +63,16 @@ const DocumentProcessor = () => {
         text = data.text;
         await worker.terminate();
       }
-      
+
+      // Step 2: send extracted text to the server for analysis
+      const { data: analysis } = await axios.post('/api/process', { text });
+
       setResult({
         extractedText: text,
-        entities: extractEntities(text),
-        summary: generateSummary(text),
+        summary: analysis.summary,
+        entities: analysis.entities,
+        keywords: analysis.keywords,
+        stats: analysis.stats,
       });
     } catch (err) {
       setError('Failed to process document. Please try again.');
@@ -218,6 +203,33 @@ const DocumentProcessor = () => {
               </div>
             </div>
           </div>
+
+          {/* Document stats */}
+          {result.stats && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
+              {[
+                { label: 'Words', value: result.stats.wordCount },
+                { label: 'Sentences', value: result.stats.sentenceCount },
+                { label: 'Paragraphs', value: result.stats.paragraphCount },
+                { label: 'Avg words/sentence', value: result.stats.avgWordsPerSentence },
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-indigo-50 rounded-md p-3 text-center">
+                  <p className="text-2xl font-bold text-indigo-700">{value}</p>
+                  <p className="text-xs text-indigo-500 mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Summary */}
+          {result.summary && (
+            <div className="mb-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-2">Summary</h4>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <p className="text-sm text-gray-700">{result.summary}</p>
+              </div>
+            </div>
+          )}
           
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
@@ -227,24 +239,48 @@ const DocumentProcessor = () => {
               </div>
             </div>
             
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-2">Identified Information</h4>
-              <div className="bg-gray-50 p-4 rounded-md h-64 overflow-y-auto">
-                {result.entities.length > 0 ? (
-                  <ul className="space-y-2">
-                    {result.entities.map((entity, index) => (
-                      <li key={index} className="flex items-start">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 mr-2">
-                          {entity.type}
-                        </span>
-                        <span className="text-sm text-gray-700">{entity.value}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">No specific information identified</p>
-                )}
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Identified Information</h4>
+                <div className="bg-gray-50 p-4 rounded-md h-32 overflow-y-auto">
+                  {result.entities && result.entities.length > 0 ? (
+                    <ul className="space-y-2">
+                      {result.entities.map((entity, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-2 ${
+                            entity.type === 'DATE' ? 'bg-blue-100 text-blue-800' :
+                            entity.type === 'AMOUNT' ? 'bg-green-100 text-green-800' :
+                            entity.type === 'EMAIL' ? 'bg-yellow-100 text-yellow-800' :
+                            entity.type === 'PHONE' ? 'bg-purple-100 text-purple-800' :
+                            'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            {entity.type}
+                          </span>
+                          <span className="text-sm text-gray-700 break-words">{entity.value}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">No specific information identified</p>
+                  )}
+                </div>
               </div>
+
+              {result.keywords && result.keywords.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Top Keywords</h4>
+                  <div className="bg-gray-50 p-4 rounded-md h-28 overflow-y-auto">
+                    <div className="flex flex-wrap gap-2">
+                      {result.keywords.map(({ word, count }) => (
+                        <span key={word} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+                          {word}
+                          <span className="ml-1 text-gray-500">×{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
