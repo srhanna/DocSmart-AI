@@ -1,5 +1,6 @@
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 export const config = {
@@ -13,7 +14,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const uploadDir = path.join(process.cwd(), 'uploads');
+  const uploadDir = path.join(os.tmpdir(), 'uploads');
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
@@ -35,7 +36,6 @@ export default async function handler(req, res) {
     return res.status(200).json({
       message: 'File uploaded successfully',
       fileName: uploadedFile.originalFilename,
-      filePath: uploadedFile.filepath,
       fileSize: uploadedFile.size,
       fileType: uploadedFile.mimetype,
     });
