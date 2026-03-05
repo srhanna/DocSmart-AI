@@ -37,9 +37,7 @@ export default function DocumentUpload() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('/api/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await axios.post('/api/upload', formData);
       setResult(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to upload document. Please try again.');

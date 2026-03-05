@@ -1,3 +1,17 @@
 node_modules/
 .next/
 uploads/
+public/pdf.worker.min.mjs
+
+# Environment variables - NEVER commit files with real secrets
+.env
+.env.local
+.env.*.local
+
+# AI agent configuration files that may contain tokens or API keys
+AI agent*
+ai-agent*
+agent-config*
+
+# Vercel local config (may contain tokens)
+.vercel
