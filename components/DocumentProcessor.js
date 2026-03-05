@@ -3,6 +3,20 @@ import React, { useState, useRef } from 'react';
 import { createWorker } from 'tesseract.js';
 import axios from 'axios';
 
+const CONVERSION_LABEL = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL;
+
+function fireConversionEvent() {
+  if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
+  if (CONVERSION_LABEL) {
+    window.gtag('event', 'conversion', { send_to: CONVERSION_LABEL });
+  } else {
+    window.gtag('event', 'document_processed', {
+      event_category: 'engagement',
+      event_label: 'document_processing_complete',
+    });
+  }
+}
+
 const DocumentProcessor = () => {
   const [file, setFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -74,6 +88,7 @@ const DocumentProcessor = () => {
         keywords: analysis.keywords,
         stats: analysis.stats,
       });
+      fireConversionEvent();
     } catch (err) {
       setError('Failed to process document. Please try again.');
       console.error(err);
